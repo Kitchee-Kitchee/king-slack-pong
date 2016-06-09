@@ -1,0 +1,27 @@
+{
+  "name": "king-slack-pong",
+  "version": "0.0.1",
+  "description": "Slack bot for the King Pong API",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kitchee-Kitchee/king-slack-pong.git"
+  },
+  "keywords": [
+    "ping",
+    "pong",
+    "slack"
+  ],
+  "author": "Andrzej Jarzyna",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Kitchee-Kitchee/king-slack-pong/issues"
+  },
+  "homepage": "https://github.com/Kitchee-Kitchee/king-slack-pong#readme",
+  "dependencies": {
+    "botkit": "^0.2.0"
+  }
+}

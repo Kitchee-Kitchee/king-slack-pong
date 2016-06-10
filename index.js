@@ -7,6 +7,7 @@ if (!fs.existsSync(configFile)){
 }
 
 var config = JSON.parse(fs.readFileSync(configFile));
+config.json_file_store = config.json_file_store || 'database';
 
 if (!config.token || !config.serverUrl) {
     console.log('Error: Please configure token and serverUrl in config.json');
@@ -16,7 +17,6 @@ if (!config.token || !config.serverUrl) {
 var Botkit = require('Botkit');
 var os = require('os');
 var http = require('http');
-var https = require('https');
 
 var KingClient = require('./lib/king-pong-client.js').client;
 
@@ -24,15 +24,26 @@ var client = new KingClient(config.serverUrl);
 
 var controller = Botkit.slackbot({
     debug: true,
+    json_file_store: config.json_file_store
 });
 
 var bot = controller.spawn({
     token: config.token
 });
 
+function userSave(err, id){
+    if (err){
+        bot.botkit.log('Cannot store user #' + id, err);
+    }
+}
 bot.startRTM(function(err, bot, payload) {
     if (err) {
         throw new Error('Could not connect to Slack');
+    } else // Cache users
+    {
+        payload.users.forEach(function(user){
+            controller.storage.users.save(user, userSave)
+        })
     }
 });
 function onUserSave(err, id){
@@ -44,55 +55,23 @@ function onUserSave(err, id){
     }
 };
 
-// hears register me so it will register in the API service provider as a player
-// TODO: implementation
-// 1. check if user exists in local storage
-// 2. if yes return if not check if user exists in API
-// 3. if not exist in API, then create it
-// 4. save the user to local storage
-function retrieveUser(bot, message, controller, slackUser){
-    client.get('/users/' + slackUser.name, null, null, function(res){
-        if (200 === res.statusCode) {
-            controller.storage.users.save(slackUser, onUserSave);
-            bot.reply(message, '@' + slackUser.name + ': You are now registered in King Pong system!');
-        }
-        else { // Probably 404
-            client.post('/users', {
-                user_name: slackUser.name,
-                email: slackUser.profile.email
-            }, null, function (res) {
-                if (200 === res.statusCode) {
-                    bot.reply(message, '@' + slackUser.name + ': You are now registered in King Pong system!');
-                    controller.storage.users.save(slackUser, onUserSave)
-                }
-                else {
-                    bot.reply(message, '@' + slackUser.name + ': Sorry :( We could not register you to King Pong system!');
-                }
-            })
-        }
-    })
-}
-
 controller.hears(['register me'], 'direct_message,direct_mention,mention', function(bot, message) {
-    bot.api.reactions.add({
-        timestamp: message.ts,
-        channel: message.channel,
-        name: 'robot_face',
-    }, function(err, res) {
-        if (err) {
-            bot.botkit.log('Failed to add emoji reaction :(', err);
-        }
-    });
+
+    bot_add_reaction(bot, message);
 
     controller.storage.users.get(message.user, function(err, user) {
         if (user) {
-            bot.reply(message, '@' + user.name + ': You are already registered in King Pong system!');
+            bot.reply(message, mentionUser(message.user, user.name) + ': You are already registered in King Pong system!');
         }
         else {
-            https.get('https://slack.com/api/users.info?token=' + config.token + '&user=' + message.user, function(res){
+            bot.api.users.info({user: message.user}, function(res){
                 if (200 === res.statusCode) {
+                    var data = [];
                     res.on('data', function(chunk){
-                        var slackUser = JSON.parse(chunk).user;
+                        data.push(chunk);
+                    })
+                    res.on('end', function(){
+                        var slackUser = JSON.parse(data.join('')).user;
                         // Check user exists in API
                         retrieveUser(bot, message, controller, slackUser);
                     })
@@ -102,18 +81,104 @@ controller.hears(['register me'], 'direct_message,direct_mention,mention', funct
     })
 });
 
+controller.hears('create a tournament called (.*)', 'direct_message,direct_mention,mention', function(bot, message){
+    bot_add_reaction(bot, message);
+
+    var tournament = {
+        name: message.match[1]
+    };
+
+    client.post('/tournaments', tournament, null, function(res){
+        if (200 === res.statusCode)
+        {
+            var data = [];
+            res.on('data', function(chunk){
+                data.push(chunk);
+            });
+
+            res.on('end', function(){
+                tournament = JSON.parse(data.join(''));
+                bot.reply(message, '<!channel|channel>:  Tournament ' + tournament.name + ' has been created with the ID #' + tournament.id)
+            });
+        }
+        else
+        {
+            bot.reply(message, '<!channel|channel>: Ooops it seems that someone does not want you to play ping pong!')
+        }
+    }, function(err){
+        bot.reply(message, '<!channel|channel>: Ooops it seems that someone does not want you to play ping pong!')
+    });
+});
+
+controller.hears('delete the tournament #(.*)', 'direct_message,direct_mention,mention', function(bot, message){
+    bot_add_reaction(bot, message);
+
+    var tournament = {
+        id: message.match[1]
+    };
+
+    client.delete('/tournaments/' + tournament.id, null, null, function(res){
+        if (200 === res.statusCode)
+        {
+            var data = [];
+            res.on('data', function(chunk){
+                data.push(chunk);
+            });
+
+            res.on('end', function(){
+                tournament = JSON.parse(data.join(''));
+                console.log(tournament);
+                bot.reply(message, '<!channel|channel>: Tournament #' + tournament.id + ' has been removed!')
+            });
+        }
+        else
+        {
+            bot.reply(message, mentionUser(message.user) + ': Ooops it seems that someone does not want you to play ping pong!')
+        }
+    }, function(err){
+        bot.reply(message, '<!channel|channel>: Ooops it seems that someone does not want you to play ping pong!')
+    });
+});
+
+
+controller.hears('(.*) wins (.*)/(.*) against (.*) in tournament #(.*)', 'direct_message,direct_mention,mention', function(bot, message){
+    bot_add_reaction(bot, message);
+
+    var game = {
+        winner: message.match[1],
+        winner_score: message.match[2],
+        loser_score: message.match[3],
+        loser: message.match[4],
+        tournament_id: message.match[5]
+    };
+
+    client.post('/games', game, null, function(res){
+        if (200 === res.statusCode)
+        {
+            var data = [];
+            res.on('data', function(chunk){
+                data.push(chunk);
+            });
+
+            res.on('end', function(){
+                tournament = JSON.parse(data.join(''));
+                console.log(tournament);
+                bot.reply(message, 'Owosome! ' + mentionUser(game.winner) + ' it seems you played well. Wanna :beer:?')
+                bot.reply(message, mentionUser(game.loser) + ' keep practicing dude! Or maybe give up on :pp:')
+            });
+        }
+        else
+        {
+            bot.reply(message, mentionUser(message.user) + ': Ooops it seems that someone does not want you to play ping pong!')
+        }
+    }, function(err){
+        bot.reply(message, '<!channel|channel>: Ooops it seems that someone does not want you to play ping pong!')
+    });
+});
+
 controller.hears(['hello', 'hi'], 'direct_message,direct_mention,mention', function(bot, message) {
 
-    bot.api.reactions.add({
-        timestamp: message.ts,
-        channel: message.channel,
-        name: 'robot_face',
-    }, function(err, res) {
-        if (err) {
-            bot.botkit.log('Failed to add emoji reaction :(', err);
-        }
-    });
-
+    bot_add_reaction(bot, message);
 
     controller.storage.users.get(message.user, function(err, user) {
         if (user && user.name) {
@@ -329,4 +394,48 @@ function formatUptime(uptime) {
 
     uptime = uptime + ' ' + unit;
     return uptime;
+}
+
+// hears register me so it will register in the API service provider as a player
+// TODO: implementation
+// 1. check if user exists in local storage
+// 2. if yes return if not check if user exists in API
+// 3. if not exist in API, then create it
+// 4. save the user to local storage
+function retrieveUser(bot, message, controller, slackUser){
+    client.get('/users/' + slackUser.name, null, null, function(res){
+        if (200 === res.statusCode) {
+            controller.storage.users.save(slackUser, onUserSave);
+            bot.reply(message, mentionUser(slackUser.id, slackUser.name) + ': You are already registered in King Pong system!');
+        }
+        else { // Probably 404
+            client.post('/users', {
+                user_name: slackUser.name,
+                email: slackUser.profile.email
+            }, null, function (res) {
+                if (200 === res.statusCode) {
+                    bot.reply(message, '@' + slackUser.name + ': You are now registered in King Pong system!');
+                    controller.storage.users.save(slackUser, onUserSave)
+                }
+                else {
+                    bot.reply(message, mentionUser(slackUser.id, slackUser.name) + ': Sorry :( We could not register you to King Pong system!');
+                }
+            })
+        }
+    })
+}
+
+function bot_add_reaction(bot, message, reaction) {
+    bot.api.reactions.add({
+        timestamp: message.ts,
+        channel: message.channel,
+        name: reaction || 'robot_face',
+    }, function (err, res) {
+        if (err) {
+            bot.botkit.log('Failed to add emoji reaction :(', err);
+        }
+    });
+}
+function mentionUser(user_id, name){
+    return '<@' + user_id + (name ?  '|' + name : '' ) + '>';
 }

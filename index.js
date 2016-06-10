@@ -1,24 +1,70 @@
+var configFile = 'config.json';
+var fs = require('fs');
 
-if (!process.env.token) {
-    console.log('Error: Specify token in environment');
+if (!fs.existsSync(configFile)){
+    console.log('Error: config.json is not set');
     process.exit(1);
 }
 
-var Botkit = require('botkit');
+var config = JSON.parse(fs.readFileSync(configFile));
+
+if (!config.token || !config.serverUrl) {
+    console.log('Error: Please configure token and serverUrl in config.json');
+    process.exit(1);
+}
+
+var Botkit = require('Botkit');
 var os = require('os');
 var http = require('http');
+var KingClient = require('./lib/king-pong-client.js').client;
+
+var client = new KingClient(config.serverUrl);
 
 var controller = Botkit.slackbot({
     debug: true,
 });
 
 var bot = controller.spawn({
-  token: process.env.token
-})
-bot.startRTM(function(err,bot,payload) {
-  if (err) {
-    throw new Error('Could not connect to Slack');
-  }
+    token: config.token
+});
+
+bot.startRTM(function(err, bot, payload) {
+    if (err) {
+        throw new Error('Could not connect to Slack');
+    }
+});
+
+// hears register me so it will register in the API service provider as a player
+// TODO: implementation
+// 1. check if user exists in local storage
+// 2. if yes return if not check if user exists in API
+// 3. if not exist in API, then create it
+// 4. save the user to local storage
+controller.hears(['register me'], 'direct_message,direct_mention,mention', function(bot, message) {
+
+    bot.api.reactions.add({
+        timestamp: message.ts,
+        channel: message.channel,
+        name: 'robot_face',
+    }, function(err, res) {
+        if (err) {
+            bot.botkit.log('Failed to add emoji reaction :(', err);
+        }
+    });
+
+    controller.storage.users.get(message.user, function(err, user) {
+        if (user) {
+            bot.reply(message, '@' + message.user + ': You are already registered in King Pong system!');
+        }
+        else {
+            client.get('/users/' + message.user, null, null, function(res){
+                console.log('=====================================================================');
+                console.log(res);
+                console.log('#####################################################################');
+            }, console.error);
+        }
+    })
+
 });
 
 controller.hears(['hello', 'hi'], 'direct_message,direct_mention,mention', function(bot, message) {
@@ -59,59 +105,59 @@ controller.hears(['call me (.*)', 'my name is (.*)'], 'direct_message,direct_men
 });
 
 controller.hears(['Is the pp room free', 'is the ping pong room free', 'can we play?'], 'direct_message,direct_mention,mention', function(bot, message) {
-	var options = {
-		host: '192.168.1.158',
-		port: 4567,
-		path: '/room/pingpong/presence',
-		method: 'GET'
-	};
-	http.request(options, function(res) {
-		var body = '';
-		res.setEncoding('utf8');
-		res.on('data', function (chunk) {
-			body += chunk;
-		});
-		res.on('end', function(){
-	        var response = JSON.parse(body);
-	        if (!response.presence) {
-			bot.reply(message, 
-			'Great news everyone! It defnitely is!');
-			} else {
-			bot.reply(message, 
-			'The Vogons are occupying it :(');
-			}
-	    });
-		
-	}).end();
-	// bot.reply(message, 
-	// 	'As a matter of fact yes, but you probably should check by yourself.');
+    var options = {
+        host: '192.168.1.158',
+        port: 4567,
+        path: '/room/pingpong/presence',
+        method: 'GET'
+    };
+    http.request(options, function(res) {
+        var body = '';
+        res.setEncoding('utf8');
+        res.on('data', function (chunk) {
+            body += chunk;
+        });
+        res.on('end', function(){
+            var response = JSON.parse(body);
+            if (!response.presence) {
+                bot.reply(message,
+                    'Great news everyone! It defnitely is!');
+            } else {
+                bot.reply(message,
+                    'The Vogons are occupying it :(');
+            }
+        });
+
+    }).end();
+    // bot.reply(message,
+    // 	'As a matter of fact yes, but you probably should check by yourself.');
 });
 
 controller.hears(['show me the pp room', 'show me the ping pong room', 'room photo'], 'direct_message,direct_mention,mention', function(bot, message) {
-	var options = {
-		host: '192.168.1.158',
-		port: 4567,
-		path: '/room/pingpong/image/last',
-		method: 'GET'
-	};
-	http.request(options, function(res) {
-		var data = [];
-		res.setEncoding('binary');
-		res.on('data', function (chunk) {
-			data.push(chunk);
-		});
-		res.on('end', function(){
-	        if (data) {
-				bot.reply(message, 
-				data);
-			} else {
-				bot.reply(message, 
-				'Warning, Error! Autodestruction in 1s...');
-			}
-	    });
-	}).end();
-	// bot.reply(message, 
-	// 	'As a matter of fact yes, but you probably should check by yourself.');
+    var options = {
+        host: '192.168.1.158',
+        port: 4567,
+        path: '/room/pingpong/image/last',
+        method: 'GET'
+    };
+    http.request(options, function(res) {
+        var data = [];
+        res.setEncoding('binary');
+        res.on('data', function (chunk) {
+            data.push(chunk);
+        });
+        res.on('end', function(){
+            if (data) {
+                bot.reply(message,
+                    data);
+            } else {
+                bot.reply(message,
+                    'Warning, Error! Autodestruction in 1s...');
+            }
+        });
+    }).end();
+    // bot.reply(message,
+    // 	'As a matter of fact yes, but you probably should check by yourself.');
 });
 
 controller.hears(['what is my name', 'who am i'], 'direct_message,direct_mention,mention', function(bot, message) {
@@ -198,24 +244,24 @@ controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function
                     }, 3000);
                 }
             },
-        {
-            pattern: bot.utterances.no,
-            default: true,
-            callback: function(response, convo) {
-                convo.say('*Phew!*');
-                convo.next();
+            {
+                pattern: bot.utterances.no,
+                default: true,
+                callback: function(response, convo) {
+                    convo.say('*Phew!*');
+                    convo.next();
+                }
             }
-        }
         ]);
     });
 });
 
 controller.hears(['time', 'what time is it', 'give me the hour', 'could you tell me what time do we have?'],
     'direct_message,direct_mention,mention', function(bot, message) {
-	var currentDate = new Date();
-	bot.reply(message, 
-		'My dear Master, it is ' + currentDate.getMinutes() + ' past ' + currentDate.getHours() + ' sir.');
-});
+        var currentDate = new Date();
+        bot.reply(message,
+            'My dear Master, it is ' + currentDate.getMinutes() + ' past ' + currentDate.getHours() + ' sir.');
+    });
 
 // controller.hears()
 
@@ -228,7 +274,7 @@ controller.hears(['uptime', 'identify yourself', 'who are you', 'what is your na
 
         bot.reply(message,
             ':robot_face: I am a bot named <@' + bot.identity.name +
-             '>. I have been running for ' + uptime + ' on ' + hostname + '.');
+            '>. I have been running for ' + uptime + ' on ' + hostname + '.');
 
     });
 

@@ -292,7 +292,23 @@ controller.hears('<@(.*)> wins (.*)/(.*) against <@(.*)> in tournament #(.*)', '
     });
 });
 
+controller.hears('leaderboard for tournament #(.*)', 'direct_message,direct_mention,mention', function(bot, message){
+    bot_add_reaction(bot, message);
 
+    client.get('/leaderboards/' + message.match[1], null, null, function(res){
+        if (200 === res.statusCode){
+            var data = [];
+            res.on('data', function(chunk){ data.push(chunk )});
+            res.on('end', function(){
+                // var list = JSON.parse(data.join(''));
+                bot.reply(message, "<!channel>: Here is the ranking for the tournament \n\n```\n" + data.join('') + "\n```");
+            });
+        }
+        else {
+            bot.reply(message, 'Sorry, I could not find any ranking for this tournament!');
+        }
+    })
+})
 
 controller.hears(['hello', 'hi'], 'direct_message,direct_mention,mention', function(bot, message) {
 

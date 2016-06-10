@@ -16,6 +16,8 @@ if (!config.token || !config.serverUrl) {
 var Botkit = require('Botkit');
 var os = require('os');
 var http = require('http');
+var https = require('https');
+
 var KingClient = require('./lib/king-pong-client.js').client;
 
 var client = new KingClient(config.serverUrl);
@@ -33,6 +35,14 @@ bot.startRTM(function(err, bot, payload) {
         throw new Error('Could not connect to Slack');
     }
 });
+function onUserSave(err, id){
+    if (!err){
+        console.log("\033[32m", 'User have been saved' , "\033[39m");
+    }
+    else {
+        console.error("\033[32m", err , "\033[39m");
+    }
+};
 
 // hears register me so it will register in the API service provider as a player
 // TODO: implementation
@@ -40,8 +50,30 @@ bot.startRTM(function(err, bot, payload) {
 // 2. if yes return if not check if user exists in API
 // 3. if not exist in API, then create it
 // 4. save the user to local storage
-controller.hears(['register me'], 'direct_message,direct_mention,mention', function(bot, message) {
+function retrieveUser(bot, message, controller, slackUser){
+    client.get('/users/' + slackUser.name, null, null, function(res){
+        if (200 === res.statusCode) {
+            controller.storage.users.save(slackUser, onUserSave);
+            bot.reply(message, '@' + slackUser.name + ': You are now registered in King Pong system!');
+        }
+        else { // Probably 404
+            client.post('/users', {
+                user_name: slackUser.name,
+                email: slackUser.profile.email
+            }, null, function (res) {
+                if (200 === res.statusCode) {
+                    bot.reply(message, '@' + slackUser.name + ': You are now registered in King Pong system!');
+                    controller.storage.users.save(slackUser, onUserSave)
+                }
+                else {
+                    bot.reply(message, '@' + slackUser.name + ': Sorry :( We could not register you to King Pong system!');
+                }
+            })
+        }
+    })
+}
 
+controller.hears(['register me'], 'direct_message,direct_mention,mention', function(bot, message) {
     bot.api.reactions.add({
         timestamp: message.ts,
         channel: message.channel,
@@ -54,17 +86,20 @@ controller.hears(['register me'], 'direct_message,direct_mention,mention', funct
 
     controller.storage.users.get(message.user, function(err, user) {
         if (user) {
-            bot.reply(message, '@' + message.user + ': You are already registered in King Pong system!');
+            bot.reply(message, '@' + user.name + ': You are already registered in King Pong system!');
         }
         else {
-            client.get('/users/' + message.user, null, null, function(res){
-                console.log('=====================================================================');
-                console.log(res);
-                console.log('#####################################################################');
-            }, console.error);
+            https.get('https://slack.com/api/users.info?token=' + config.token + '&user=' + message.user, function(res){
+                if (200 === res.statusCode) {
+                    res.on('data', function(chunk){
+                        var slackUser = JSON.parse(chunk).user;
+                        // Check user exists in API
+                        retrieveUser(bot, message, controller, slackUser);
+                    })
+                }
+            });
         }
     })
-
 });
 
 controller.hears(['hello', 'hi'], 'direct_message,direct_mention,mention', function(bot, message) {

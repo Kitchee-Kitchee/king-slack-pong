@@ -47,6 +47,14 @@ bot.startRTM(function(err, bot, payload) {
         })
     }
 });
+function onUserSave(err, id){
+    if (!err){
+        console.log("\033[32m", 'User have been saved' , "\033[39m");
+    }
+    else {
+        console.error("\033[32m", err , "\033[39m");
+    }
+};
 
 // hears register me so it will register in the API service provider as a player
 // TODO: implementation
@@ -57,7 +65,7 @@ bot.startRTM(function(err, bot, payload) {
 function retrieveUser(bot, message, controller, slackUser){
     client.get('/users/' + slackUser.name, null, null, function(res){
         if (200 === res.statusCode) {
-            controller.storage.users.save(slackUser, onUserSave);
+            controller.storage.users.save(slackUser, userSave);
             bot.reply(message, mentionUser(slackUser.id, slackUser.name) + ': You are already registered in King Pong system!');
         }
         else { // Probably 404

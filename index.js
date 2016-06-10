@@ -75,10 +75,10 @@ controller.hears(['Is the pp room free', 'is the ping pong room free', 'can we p
 	        var response = JSON.parse(body);
 	        if (!response.presence) {
 			bot.reply(message, 
-			'Great news everyone! It defnitely is!');
+			'Great news everyone! The ping pong temple is free!');
 			} else {
 			bot.reply(message, 
-			'The Vogons are occupying it :(');
+			'The Vogons are occupying ping pong room :(');
 			}
 	    });
 		
@@ -94,22 +94,37 @@ controller.hears(['show me the pp room', 'show me the ping pong room', 'room pho
 		path: '/room/pingpong/image/last',
 		method: 'GET'
 	};
-	http.request(options, function(res) {
-		var data = [];
-		res.setEncoding('binary');
-		res.on('data', function (chunk) {
-			data.push(chunk);
-		});
-		res.on('end', function(){
-	        if (data) {
-				bot.reply(message, 
-				data);
-			} else {
-				bot.reply(message, 
-				'Warning, Error! Autodestruction in 1s...');
-			}
-	    });
-	}).end();
+	// http.request(options, function(res) {
+	// 	var data = [];
+	// 	res.setEncoding('binary');
+	// 	res.on('data', function (chunk) {
+	// 		data.push(chunk);
+	// 	});
+	// 	console.log(data);
+	// 	var b64data = new Buffer(data).toString('base64');
+	// 	console.log(b64data);
+	// 	res.on('end', function(){
+	//         if (b64data) {
+	// 			bot.reply(message, 
+	// 			b64data);
+	// 		} else {
+	// 			bot.reply(message, 
+	// 			'Warning, Error! Autodestruction in 1s...');
+	// 		}
+	//     });
+	// }).end();
+	var reply_with_attachments = {
+    'text': 'This is what is happening in the ping pong room:',
+    'attachments': [
+      {
+        'title': 'Current pp room status',
+        'color': '#7CD197'
+      }
+    ],
+    'image_url': 'http://192.168.1.158:4567/room/pingpong/image/last'
+    }
+
+  bot.reply(message, reply_with_attachments);
 	// bot.reply(message, 
 	// 	'As a matter of fact yes, but you probably should check by yourself.');
 });

@@ -301,7 +301,24 @@ controller.hears(['time', 'what time is it', 'give me the hour', 'could you tell
 		'My dear Master, it is ' + currentDate.getMinutes() + ' past ' + currentDate.getHours() + ' sir.');
 });
 
-// controller.hears()
+controller.hears(['Kich the trolls out', 'Evacuate!'], 'direct_message,direct_mention,mention', function(bot, message) {
+	var options = {
+		host: '192.168.1.158',
+		port: 4567,
+		path: '/room/pingpong/siren/enable',
+		method: 'POST'
+	};
+	http.request(options, function(res) {
+		var body = '';
+		res.setEncoding('utf8');
+		res.on('end', function(){
+			bot.reply(message, 
+			'The alarm has been fired!');
+	    });
+	   });	
+});
+	// bot.reply(message, 
+	// 	'As a matter of fact yes, but you probably should check by yourself.');
 
 
 controller.hears(['uptime', 'identify yourself', 'who are you', 'what is your name'],

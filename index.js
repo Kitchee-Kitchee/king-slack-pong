@@ -305,7 +305,7 @@ controller.hears(['Kich the trolls out', 'Evacuate!'], 'direct_message,direct_me
 	var options = {
 		host: '192.168.1.158',
 		port: 4567,
-		path: '/room/pingpong/siren/enable',
+		path: '/room/pingpong/siren/play',
 		method: 'POST'
 	};
 	http.request(options, function(res) {
@@ -315,11 +315,8 @@ controller.hears(['Kich the trolls out', 'Evacuate!'], 'direct_message,direct_me
 			bot.reply(message, 
 			'The alarm has been fired!');
 	    });
-	   });	
+	   }).end();	
 });
-	// bot.reply(message, 
-	// 	'As a matter of fact yes, but you probably should check by yourself.');
-
 
 controller.hears(['uptime', 'identify yourself', 'who are you', 'what is your name'],
     'direct_message,direct_mention,mention', function(bot, message) {

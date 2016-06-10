@@ -94,42 +94,110 @@ controller.hears(['show me the pp room', 'show me the ping pong room', 'room pho
 		path: '/room/pingpong/image/last',
 		method: 'GET'
 	};
-	http.request(options, function(res) {
-		var data = [];
-		res.setEncoding('binary');
-		res.on('data', function (chunk) {
-			data.push(chunk);
-		});
-		http.request(opt, function(res) {
-			
-		})
-		// res.on('end', function(){
-	 //        if (b64data) {
-		// 		bot.reply(message, 
-		// 		b64data);
-		// 	} else {
-		// 		bot.reply(message, 
-		// 		'Warning, Error! Autodestruction in 1s...');
-		// 	}
-	 //    });
-	}).end();
-	
-	var reply_with_attachments = {
-    'text': 'This is what is happening in the ping pong room:',
-    'attachments': [
-      {
-        'title': 'Current pp room status',
-        'color': '#7CD197'
-      }
-    ],
-    'image_url': 'http://192.168.1.158:4567/room/pingpong/image/last'
-    }
+var http = require('http')
+  , fs = require('fs')
+  , options
 
-  bot.reply(message, reply_with_attachments);
-	// bot.reply(message, 
-	// 	'As a matter of fact yes, but you probably should check by yourself.');
+
+var request = http.get(options, function(res){
+    var imagedata = ''
+    res.setEncoding('binary')
+
+    res.on('data', function(chunk){
+        imagedata += chunk
+    })
+
+    res.on('end', function(){
+        fs.writeFile('logo.jpg', imagedata, 'binary', function(err){
+            if (err) throw err
+            console.log('File saved.')
+
+        });
+    //bot.api.files.upload({
+    //    content: imagedata,
+    //    channels: '#ping-pong-hack',
+	//	filename: 'auto.jpg',
+	//	filetype: 'image',
+	//	mimetype: 'image/jpeg',
+    //}, function(err, res) {
+    //    if (err) {
+    //        bot.botkit.log('Failed to add emoji reaction :(', err);
+    //    }
+    //});
+    random = Math.random() * (1000);
+    //bot.api.chat.postMessage({channel: '#ping-pong-hack', text: 'https://2470de95.ngrok.io/latest?r='+random, unfurl_media: 'true'});
+    bot.reply(message, 'https://2470de95.ngrok.io/latest?r='+random);
+    })
+
+})
+
+//var binary=""
+//url="http://192.168.1.158:4567/room/pingpong/image/last"
+//download(url, binary);
+//console .log("binary:" + binary);
+//req = http.request(options, function(res) {
+//    res.setEncoding('binary');
+//
+//    var data = [ ];
+//
+//    res.on('data', function(chunk) {
+//        data.push(chunk);
+//    });
+//    res.on('end', function() {
+//        binary = Buffer.concat(data);
+//		console.log("BINARY: " ,binary);
+//		console.log("DATA: " ,data);
+//		console.log("DATA: " ,binary);
+//        // binary is your data
+//    });
+//    res.on('error', function(err) {
+//        console.log("Error during HTTP request");
+//        console.log(err.message);
+//    });
+//});
+//var sleep = require('sleep');
+//sleep.sleep(4);
+//console.log("SIO?", binary);
+//
+//
+//	//http.request(options, function(res) {
+//	//	res.setEncoding('binary');
+//	//	res.on('data', function (chunk) {
+//	//		data.push(chunk);
+//	//	});
+//	//	http.request(options, function(res) {
+//	//		
+//	//	})
+//	//	// res.on('end', function(){
+//	// //        if (b64data) {
+//	//	// 		bot.reply(message, 
+//	//	// 		b64data);
+//	//	// 	} else {
+//	//	// 		bot.reply(message, 
+//	//	// 		'Warning, Error! Autodestruction in 1s...');
+//	//	// 	}
+//	// //    });
+//	//}).end();
+//	
+//	var reply_with_attachments = {
+//    'text': 'This is what is happening in the ping pong room:',
+//    'attachments': [
+//      {
+//        'title': 'Current pp room status',
+//        'color': '#7CD197'
+//      }
+//    ],
+//    'image_url': 'http://192.168.1.158:4567/room/pingpong/image/last'
+//    }
+//
+//  //bot.reply(message, reply_with_attachments);
+//  var fs = require('fs');
+//  fs.writeFile('message.txt', binary);
+//  ///// write to file
+//	// bot.reply(message, 
+//	// 	'As a matter of fact yes, but you probably should check by yourself.');
 });
-
+//
 controller.hears(['what is my name', 'who am i'], 'direct_message,direct_mention,mention', function(bot, message) {
 
     controller.storage.users.get(message.user, function(err, user) {
@@ -265,3 +333,4 @@ function formatUptime(uptime) {
     uptime = uptime + ' ' + unit;
     return uptime;
 }
+

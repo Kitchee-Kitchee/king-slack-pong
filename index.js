@@ -74,7 +74,7 @@ function retrieveUser(bot, message, controller, slackUser){
                 email: slackUser.profile.email
             }, null, function (res) {
                 if (200 === res.statusCode) {
-                    bot.reply(mentionUser(slackUser.id) + ': You are now registered in King Pong system!');
+                    bot.reply(message, mentionUser(slackUser.id) + ': You are now registered in King Pong system!');
                     controller.storage.users.save(slackUser, onUserSave)
                 }
                 else {

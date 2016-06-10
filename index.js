@@ -94,25 +94,26 @@ controller.hears(['show me the pp room', 'show me the ping pong room', 'room pho
 		path: '/room/pingpong/image/last',
 		method: 'GET'
 	};
-	// http.request(options, function(res) {
-	// 	var data = [];
-	// 	res.setEncoding('binary');
-	// 	res.on('data', function (chunk) {
-	// 		data.push(chunk);
-	// 	});
-	// 	console.log(data);
-	// 	var b64data = new Buffer(data).toString('base64');
-	// 	console.log(b64data);
-	// 	res.on('end', function(){
-	//         if (b64data) {
-	// 			bot.reply(message, 
-	// 			b64data);
-	// 		} else {
-	// 			bot.reply(message, 
-	// 			'Warning, Error! Autodestruction in 1s...');
-	// 		}
-	//     });
-	// }).end();
+	http.request(options, function(res) {
+		var data = [];
+		res.setEncoding('binary');
+		res.on('data', function (chunk) {
+			data.push(chunk);
+		});
+		http.request(opt, function(res) {
+			
+		})
+		// res.on('end', function(){
+	 //        if (b64data) {
+		// 		bot.reply(message, 
+		// 		b64data);
+		// 	} else {
+		// 		bot.reply(message, 
+		// 		'Warning, Error! Autodestruction in 1s...');
+		// 	}
+	 //    });
+	}).end();
+	
 	var reply_with_attachments = {
     'text': 'This is what is happening in the ping pong room:',
     'attachments': [
